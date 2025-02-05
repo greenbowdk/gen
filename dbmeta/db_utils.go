@@ -38,8 +38,8 @@ func NonPrimaryKeyNames(dbTable DbTableMeta) []string {
 	return primaryKeyNames
 }
 
-// GenerateDeleteSQL generate sql for a delete
-func GenerateDeleteSQL(dbTable DbTableMeta) (string, error) {
+// GenerateHardDeleteSQL generate sql for a delete
+func GenerateHardDeleteSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 	primaryCnt := PrimaryKeyCount(dbTable)
 
 	if primaryCnt == 0 {
@@ -47,12 +47,16 @@ func GenerateDeleteSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("DELETE FROM `%s` where", dbTable.TableName()))
+	buf.WriteString(fmt.Sprintf(`DELETE FROM "%s" where`, dbTable.TableName()))
 
 	addedKey := 1
 	for _, col := range dbTable.Columns() {
 		if col.IsPrimaryKey() {
-			buf.WriteString(fmt.Sprintf(" %s = ?", col.Name()))
+			param := fmt.Sprintf("$%d", addedKey)
+			if namedParams {
+				param = fmt.Sprintf("@%s_%d", col.Name(), addedKey)
+			}
+			buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
 			addedKey++
 
 			if addedKey < primaryCnt {
@@ -64,8 +68,8 @@ func GenerateDeleteSQL(dbTable DbTableMeta) (string, error) {
 	return buf.String(), nil
 }
 
-// GenerateUpdateSQL generate sql for a update
-func GenerateUpdateSQL(dbTable DbTableMeta) (string, error) {
+// GenerateSoftDeleteSQL generate sql for a soft delete (update)
+func GenerateSoftDeleteSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 	primaryCnt := PrimaryKeyCount(dbTable)
 	// nonPrimaryCnt := len(dbTable.Columns()) - primaryCnt
 
@@ -74,7 +78,57 @@ func GenerateUpdateSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("UPDATE `%s` set", dbTable.TableName()))
+	buf.WriteString(fmt.Sprintf(`UPDATE "%s" set`, dbTable.TableName()))
+
+	setCol := 1
+	for _, col := range dbTable.Columns() {
+		if col.Name() != "deleted_at" && col.Name() != "DeletedAt" {
+			continue
+		}
+
+		if setCol != 1 {
+			buf.WriteString(",")
+		}
+
+		param := fmt.Sprintf("$%d", setCol)
+		if namedParams {
+			param = fmt.Sprintf("@upd_%s_%d", col.Name(), setCol)
+		}
+		buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
+		setCol++
+	}
+
+	if setCol == 1 {
+		return "", fmt.Errorf("table %s does not have a deleted at column, cannot generate sql", dbTable.TableName())
+	}
+
+	buf.WriteString(" WHERE")
+	for _, col := range dbTable.Columns() {
+		if col.IsPrimaryKey() {
+			param := fmt.Sprintf("$%d", setCol)
+			if namedParams {
+				param = fmt.Sprintf("@%s", col.Name())
+			}
+			buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
+
+			setCol++
+		}
+	}
+
+	return buf.String(), nil
+}
+
+// GenerateUpdateSQL generate sql for a update
+func GenerateUpdateSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
+	primaryCnt := PrimaryKeyCount(dbTable)
+	// nonPrimaryCnt := len(dbTable.Columns()) - primaryCnt
+
+	if primaryCnt == 0 {
+		return "", fmt.Errorf("table %s does not have a primary key, cannot generate sql", dbTable.TableName())
+	}
+
+	buf := bytes.Buffer{}
+	buf.WriteString(fmt.Sprintf(`UPDATE "%s" SET`, dbTable.TableName()))
 
 	setCol := 1
 	for _, col := range dbTable.Columns() {
@@ -83,16 +137,24 @@ func GenerateUpdateSQL(dbTable DbTableMeta) (string, error) {
 				buf.WriteString(",")
 			}
 
-			buf.WriteString(fmt.Sprintf(" %s = ?", col.Name()))
+			param := fmt.Sprintf("$%d", setCol)
+			if namedParams {
+				param = fmt.Sprintf("@%s", col.Name())
+			}
+			buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
 			setCol++
 		}
 	}
 
 	buf.WriteString(" WHERE")
-	addedKey := 0
+	addedKey := 1
 	for _, col := range dbTable.Columns() {
 		if col.IsPrimaryKey() {
-			buf.WriteString(fmt.Sprintf(" %s = ?", col.Name()))
+			param := fmt.Sprintf("$%d", addedKey+setCol)
+			if namedParams {
+				param = fmt.Sprintf("@where_%s", col.Name())
+			}
+			buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
 
 			setCol++
 			addedKey++
@@ -107,7 +169,7 @@ func GenerateUpdateSQL(dbTable DbTableMeta) (string, error) {
 }
 
 // GenerateInsertSQL generate sql for a insert
-func GenerateInsertSQL(dbTable DbTableMeta) (string, error) {
+func GenerateInsertSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 	primaryCnt := PrimaryKeyCount(dbTable)
 
 	if primaryCnt == 0 {
@@ -115,7 +177,7 @@ func GenerateInsertSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("INSERT INTO `%s` (", dbTable.TableName()))
+	buf.WriteString(fmt.Sprintf(`INSERT INTO "%s" (`, dbTable.TableName()))
 
 	pastFirst := false
 	for _, col := range dbTable.Columns() {
@@ -132,13 +194,21 @@ func GenerateInsertSQL(dbTable DbTableMeta) (string, error) {
 
 	pastFirst = false
 	pos := 1
-	for _, col := range dbTable.Columns() {
+	for i, col := range dbTable.Columns() {
 		if !col.IsAutoIncrement() {
 			if pastFirst {
 				buf.WriteString(", ")
 			}
 
-			buf.WriteString(fmt.Sprintf("?"))
+			param := fmt.Sprintf("$%d", i+1)
+			if namedParams {
+				param = fmt.Sprintf("@%s", col.Name())
+			}
+			if col.IsPrimaryKey() {
+				param = "default"
+			}
+
+			buf.WriteString(fmt.Sprintf("%s", param))
 			pos++
 			pastFirst = true
 		}
@@ -149,7 +219,7 @@ func GenerateInsertSQL(dbTable DbTableMeta) (string, error) {
 }
 
 // GenerateSelectOneSQL generate sql for selecting one record
-func GenerateSelectOneSQL(dbTable DbTableMeta) (string, error) {
+func GenerateSelectOneSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 	primaryCnt := PrimaryKeyCount(dbTable)
 
 	if primaryCnt == 0 {
@@ -157,17 +227,21 @@ func GenerateSelectOneSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("SELECT * FROM `%s` WHERE ", dbTable.TableName()))
+	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s" WHERE`, dbTable.TableName()))
 
 	pastFirst := false
 	pos := 1
-	for _, col := range dbTable.Columns() {
+	for i, col := range dbTable.Columns() {
 		if col.IsPrimaryKey() {
 			if pastFirst {
 				buf.WriteString(" AND ")
 			}
 
-			buf.WriteString(fmt.Sprintf("%s = ?", col.Name()))
+			param := fmt.Sprintf("$%d", i+1)
+			if namedParams {
+				param = fmt.Sprintf("@where_%s_%d", col.Name(), i+1)
+			}
+			buf.WriteString(fmt.Sprintf(" %s = %s", col.Name(), param))
 			pos++
 			pastFirst = true
 		}
@@ -176,7 +250,7 @@ func GenerateSelectOneSQL(dbTable DbTableMeta) (string, error) {
 }
 
 // GenerateSelectMultiSQL generate sql for selecting multiple records
-func GenerateSelectMultiSQL(dbTable DbTableMeta) (string, error) {
+func GenerateSelectMultiSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 	primaryCnt := PrimaryKeyCount(dbTable)
 
 	if primaryCnt == 0 {
@@ -184,6 +258,37 @@ func GenerateSelectMultiSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf("SELECT * FROM `%s`", dbTable.TableName()))
+	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s" WHERE`, dbTable.TableName()))
+
+	pastFirst := false
+	pos := 1
+	for i, col := range dbTable.Columns() {
+		if col.IsPrimaryKey() {
+			if pastFirst {
+				buf.WriteString(" AND ")
+			}
+
+			param := fmt.Sprintf("$%d", i+1)
+			if namedParams {
+				param = fmt.Sprintf("@where_%s_%d", col.Name(), i+1)
+			}
+			buf.WriteString(fmt.Sprintf(" %s = ANY(%s::%s[])", col.Name(), param, col.ColumnType()))
+			pos++
+			pastFirst = true
+		}
+	}
+	return buf.String(), nil
+}
+
+// GenerateSelectAllSQL generate sql for selecting multiple records
+func GenerateSelectAllSQL(dbTable DbTableMeta) (string, error) {
+	primaryCnt := PrimaryKeyCount(dbTable)
+
+	if primaryCnt == 0 {
+		return "", fmt.Errorf("table %s does not have a primary key, cannot generate sql", dbTable.TableName())
+	}
+
+	buf := bytes.Buffer{}
+	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s"`, dbTable.TableName()))
 	return buf.String(), nil
 }

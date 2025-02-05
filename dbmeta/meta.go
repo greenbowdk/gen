@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -672,6 +673,17 @@ func FindInSlice(slice []string, val string) (int, bool) {
 	return -1, false
 }
 
+// FindInSliceRegex same as FindInSlice but using each value in slice as a regex pattern
+func FindInSliceRegex(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		re := regexp.MustCompile(item)
+		if re.MatchString(val) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // LoadTableInfo load table info from db connection, and list of tables
 func LoadTableInfo(db *sql.DB, dbTables []string, excludeDbTables []string, conf *Config) map[string]*ModelInfo {
 
@@ -681,7 +693,7 @@ func LoadTableInfo(db *sql.DB, dbTables []string, excludeDbTables []string, conf
 	var tableIdx = 0
 	for i, tableName := range dbTables {
 
-		_, ok := FindInSlice(excludeDbTables, tableName)
+		_, ok := FindInSliceRegex(excludeDbTables, tableName)
 		if ok {
 			fmt.Printf("Skipping excluded table %s\n", tableName)
 			continue

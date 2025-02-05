@@ -24,3 +24,5 @@ require (
 	golang.org/x/crypto v0.0.0-20201012173705-84dcc777aaee // indirect
 	golang.org/x/tools v0.0.0-20201224043029-2b0845dc783e
 )
+
+replace github.com/smallnest/gen => /Users/lasse/git/greenbow/gen

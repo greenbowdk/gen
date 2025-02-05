@@ -137,7 +137,7 @@ Options:
   --gorm                                                   Add gorm annotations (tags)
   --protobuf                                               Add protobuf annotations (tags)
   --proto-fmt=snake                                        proto name format [snake | camel | lower_camel | none]
-  --gogo-proto=                                            location of gogo import 
+  --gogo-proto=                                            location of gogo import
   --db                                                     Add db annotations (tags)
   --guregu                                                 Add guregu null types
   --copy-templates                                         Copy regeneration templates to project directory
@@ -366,7 +366,7 @@ The following info is available within use of the exec template.
    "apiPackageName"            string                         "api"
    "daoFQPN"                   string                         "github.com/alexj212/test/dao"
    "daoPackageName"            string                         "dao"
-   "delSql"                    string                         "DELETE FROM `invoices` where InvoiceId = ?"
+   "deleteOneSql"              string                         "DELETE FROM `invoices` where InvoiceId = ?"
    "insertSql"                 string                         "INSERT INTO `invoices` ( CustomerId,  InvoiceDate,  BillingAddress,  BillingCity,  BillingState,  BillingCountry,  BillingPostalCode,  Total) values ( ?, ?, ?, ?, ?, ?, ?, ? )"
    "modelFQPN"                 string                         "github.com/alexj212/test/model"
    "modelPackageName"          string                         "model"
@@ -438,7 +438,7 @@ Table Name: registration_source
 ## Version History
 - v0.9.27 (08/04/2020)
     - Updated '--exec' mode to provide various functions for processing
-    - copy function updated to provide --include and --exclude patterns. Patterns are processed in order, an include preceeding an exclude will take precedence. Multiple include and excludes can be specified. Files ending with .table.tmpl will be processed for each table. Output filenames will be stored in the proper directory, with a name of the table with the suffix of the template extension. Files ending with .tmpl will be processed as a template and the filename will be the name of the template stripped with the .tmpl suffix. 
+    - copy function updated to provide --include and --exclude patterns. Patterns are processed in order, an include preceeding an exclude will take precedence. Multiple include and excludes can be specified. Files ending with .table.tmpl will be processed for each table. Output filenames will be stored in the proper directory, with a name of the table with the suffix of the template extension. Files ending with .tmpl will be processed as a template and the filename will be the name of the template stripped with the .tmpl suffix.
     - When processing templates, files generated with a .go extension will be formatted with the go fmt.
 - v0.9.26 (07/31/2020)
     - Release scripting

@@ -11,7 +11,6 @@ import (
 	"github.com/smallnest/gen/utils"
 
 	"go/format"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -376,7 +375,7 @@ func escape(content string) string {
 // LoadFragments read all filed inside dirname to `fragments`
 func (c *Config) LoadFragments(dirname string) error {
 	c.FragmentsDir = dirname
-	files, err := ioutil.ReadDir(dirname)
+	files, err := os.ReadDir(dirname)
 	if err != nil {
 		return err
 	}
@@ -385,7 +384,7 @@ func (c *Config) LoadFragments(dirname string) error {
 	for _, file := range files {
 		if !file.IsDir() {
 			filename := path.Join(dirname, file.Name())
-			content, err := ioutil.ReadFile(filename)
+			content, err := os.ReadFile(filename)
 			if err != nil {
 				return err
 			}
@@ -493,6 +492,10 @@ func (c *Config) GenerateTableFile(tableName, templateFilename, outputDirectory,
 	outputFile := filepath.Join(fileOutDir, outputFileName)
 	buf.WriteString(fmt.Sprintf("Writing %s -> %s\n", templateFilename, outputFile))
 	err = c.WriteTemplate(tpl, data, outputFile)
+	if err != nil {
+		buf.WriteString(fmt.Sprintf("Error calling WriteTemplate %s -> %v\n", templateFilename, err))
+	}
+
 	return buf.String()
 }
 
@@ -513,29 +516,71 @@ func (c *Config) CreateContextForTableFile(tableInfo *ModelInfo) map[string]inte
 	modelInfo["PrimaryKeyNamesList"] = primaryKeys
 	modelInfo["PrimaryKeysJoined"] = strings.Join(primaryKeys, ",")
 
-	delSQL, err := GenerateDeleteSQL(tableInfo.DBMeta)
+	hardDeleteOneSql, err := GenerateHardDeleteSQL(tableInfo.DBMeta, false)
 	if err == nil {
-		modelInfo["delSql"] = delSQL
+		modelInfo["hardDeleteOneSql"] = hardDeleteOneSql
+	}
+	hardDeleteOneSqlNamed, err := GenerateHardDeleteSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["hardDeleteOneSqlNamed"] = hardDeleteOneSqlNamed
 	}
 
-	updateSQL, err := GenerateUpdateSQL(tableInfo.DBMeta)
+	softDeleteOneSql, err := GenerateSoftDeleteSQL(tableInfo.DBMeta, false)
+	if err == nil {
+		modelInfo["softDeleteOneSql"] = softDeleteOneSql
+		modelInfo["hasSoftDeleteOneSql"] = true
+	} else {
+		modelInfo["softDeleteOneSql"] = ""
+		modelInfo["hasSoftDeleteOneSql"] = false
+	}
+	softDeleteOneSqlNamed, err := GenerateSoftDeleteSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["softDeleteOneSqlNamed"] = softDeleteOneSqlNamed
+		modelInfo["hasSoftDeleteOneSqlNamed"] = true
+	} else {
+		modelInfo["softDeleteOneSqlNamed"] = ""
+		modelInfo["hasSoftDeleteOneSqlNamed"] = false
+	}
+
+	updateSQL, err := GenerateUpdateSQL(tableInfo.DBMeta, false)
 	if err == nil {
 		modelInfo["updateSql"] = updateSQL
 	}
+	updateSQLNamed, err := GenerateUpdateSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["updateSqlNamed"] = updateSQLNamed
+	}
 
-	insertSQL, err := GenerateInsertSQL(tableInfo.DBMeta)
+	insertSQL, err := GenerateInsertSQL(tableInfo.DBMeta, false)
 	if err == nil {
 		modelInfo["insertSql"] = insertSQL
 	}
+	insertSQLNamed, err := GenerateInsertSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["insertSqlNamed"] = insertSQLNamed
+	}
 
-	selectOneSQL, err := GenerateSelectOneSQL(tableInfo.DBMeta)
+	selectOneSQL, err := GenerateSelectOneSQL(tableInfo.DBMeta, false)
 	if err == nil {
 		modelInfo["selectOneSql"] = selectOneSQL
 	}
+	selectOneSQLNamed, err := GenerateSelectOneSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["selectOneSqlNamed"] = selectOneSQLNamed
+	}
 
-	selectMultiSQL, err := GenerateSelectMultiSQL(tableInfo.DBMeta)
+	selectMultiSQL, err := GenerateSelectMultiSQL(tableInfo.DBMeta, false)
 	if err == nil {
 		modelInfo["selectMultiSql"] = selectMultiSQL
+	}
+	selectMultiSQLNamed, err := GenerateSelectMultiSQL(tableInfo.DBMeta, true)
+	if err == nil {
+		modelInfo["selectMultiSqlNamed"] = selectMultiSQLNamed
+	}
+
+	selectAllSQL, err := GenerateSelectAllSQL(tableInfo.DBMeta)
+	if err == nil {
+		modelInfo["selectAllSql"] = selectAllSQL
 	}
 	return modelInfo
 }
@@ -599,7 +644,7 @@ func (c *Config) WriteTemplate(genTemplate *GenTemplate, data map[string]interfa
 		return fmt.Errorf("error writing %s - error: %v", outputFile, err)
 	}
 
-	err = ioutil.WriteFile(outputFile, fileContents, 0777)
+	err = os.WriteFile(outputFile, fileContents, 0777)
 	if err != nil {
 		return fmt.Errorf("error writing %s - error: %v", outputFile, err)
 	}
@@ -855,7 +900,7 @@ func (c *Config) tableFileHandlerFunc(src, dest string, info os.FileInfo, opt ut
 func loadFile(src string) string {
 	// Read entire file content, giving us little control but
 	// making it very simple. No need to close the file.
-	content, err := ioutil.ReadFile(src)
+	content, err := os.ReadFile(src)
 	if err != nil {
 		return fmt.Sprintf("error loading %s error: %v", src, err)
 	}
