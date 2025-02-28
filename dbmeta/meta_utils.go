@@ -100,6 +100,7 @@ type PostgresInformationSchema struct {
 	IsNullable             string
 	IsIdentity             string
 	PrimaryKey             bool
+	HasDefaultNextval      bool
 }
 
 // LoadTableInfoFromPostgresInformationSchema fetch info from information_schema for postgres database
@@ -108,7 +109,7 @@ func LoadTableInfoFromPostgresInformationSchema(db *sql.DB, tableName string) (p
 
 	identitySQL := fmt.Sprintf(`
 SELECT TABLE_CATALOG, table_schema, table_name, ordinal_position, column_name, data_type, character_maximum_length,
-column_default, is_nullable, is_identity 
+column_default, is_nullable, is_identity, CASE WHEN column_default LIKE 'nextval%%' THEN TRUE ELSE FALSE END AS has_default_nextval
 FROM information_schema.columns
 WHERE table_name = '%s' 
 ORDER BY table_name, ordinal_position;
@@ -122,7 +123,7 @@ ORDER BY table_name, ordinal_position;
 	for res.Next() {
 		ci := &PostgresInformationSchema{}
 		err = res.Scan(&ci.TableCatalog, &ci.TableSchema, &ci.TableName, &ci.OrdinalPosition, &ci.ColumnName, &ci.DataType, &ci.CharacterMaximumLength,
-			&ci.ColumnDefault, &ci.IsNullable, &ci.IsIdentity)
+			&ci.ColumnDefault, &ci.IsNullable, &ci.IsIdentity, &ci.HasDefaultNextval)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load identity info from postgres Scan: %v", err)
 		}
