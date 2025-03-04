@@ -48,7 +48,7 @@ func LoadPostgresMeta(db *sql.DB, sqlType, sqlDatabase, tableName string) (DbTab
 		colInfo, ok := colInfo[v.Name()]
 		if ok {
 			nullable = colInfo.IsNullable == "YES"
-			isAutoIncrement = colInfo.IsIdentity == "YES"
+			isAutoIncrement = colInfo.IsIdentity == "YES" || colInfo.HasDefaultNextval
 			isPrimaryKey = colInfo.PrimaryKey
 
 			if colInfo.ColumnDefault != nil {

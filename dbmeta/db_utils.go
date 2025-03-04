@@ -181,37 +181,33 @@ func GenerateInsertSQL(dbTable DbTableMeta, namedParams bool) (string, error) {
 
 	pastFirst := false
 	for _, col := range dbTable.Columns() {
-		if !col.IsAutoIncrement() {
-			if pastFirst {
-				buf.WriteString(", ")
-			}
-
-			buf.WriteString(fmt.Sprintf(" %s", col.Name()))
-			pastFirst = true
+		if pastFirst {
+			buf.WriteString(", ")
 		}
+
+		buf.WriteString(fmt.Sprintf(" %s", col.Name()))
+		pastFirst = true
 	}
 	buf.WriteString(") values ( ")
 
 	pastFirst = false
 	pos := 1
 	for i, col := range dbTable.Columns() {
-		if !col.IsAutoIncrement() {
-			if pastFirst {
-				buf.WriteString(", ")
-			}
-
-			param := fmt.Sprintf("$%d", i+1)
-			if namedParams {
-				param = fmt.Sprintf("@%s", col.Name())
-			}
-			if col.IsPrimaryKey() {
-				param = "default"
-			}
-
-			buf.WriteString(fmt.Sprintf("%s", param))
-			pos++
-			pastFirst = true
+		if pastFirst {
+			buf.WriteString(", ")
 		}
+
+		param := fmt.Sprintf("$%d", i+1)
+		if namedParams {
+			param = fmt.Sprintf("@%s", col.Name())
+		}
+		if col.IsAutoIncrement() {
+			param = "default"
+		}
+
+		buf.WriteString(fmt.Sprintf("%s", param))
+		pos++
+		pastFirst = true
 	}
 
 	buf.WriteString(" )")
