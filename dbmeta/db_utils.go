@@ -3,6 +3,7 @@ package dbmeta
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 // PrimaryKeyCount return the number of primary keys in table
@@ -223,7 +224,11 @@ func GenerateSelectOneSQL(dbTable DbTableMeta, namedParams bool) (string, error)
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s" WHERE`, dbTable.TableName()))
+	sql, err := GenerateSelectAllSQL(dbTable)
+	if err != nil {
+		return "", err
+	}
+	buf.WriteString(fmt.Sprintf(`%s WHERE`, sql))
 
 	pastFirst := false
 	pos := 1
@@ -254,7 +259,11 @@ func GenerateSelectMultiSQL(dbTable DbTableMeta, namedParams bool) (string, erro
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s" WHERE`, dbTable.TableName()))
+	sql, err := GenerateSelectAllSQL(dbTable)
+	if err != nil {
+		return "", err
+	}
+	buf.WriteString(fmt.Sprintf(`%s WHERE`, sql))
 
 	pastFirst := false
 	pos := 1
@@ -285,6 +294,13 @@ func GenerateSelectAllSQL(dbTable DbTableMeta) (string, error) {
 	}
 
 	buf := bytes.Buffer{}
-	buf.WriteString(fmt.Sprintf(`SELECT * FROM "%s"`, dbTable.TableName()))
+
+	columns := []string{}
+	for _, col := range dbTable.Columns() {
+		columns = append(columns, fmt.Sprintf(`"%s"`, col.Name()))
+	}
+
+	buf.WriteString(fmt.Sprintf(`SELECT %s FROM "%s"`, strings.Join(columns, ", "), dbTable.TableName()))
+
 	return buf.String(), nil
 }
