@@ -71,6 +71,11 @@ var parsePrimaryKeys = map[string]string{
 	"int16":     "parseInt16",
 	"int32":     "parseInt32",
 	"int64":     "parseInt64",
+	"float":     "parseFloat",
+	"float8":    "parseFloat8",
+	"float16":   "parseFloat16",
+	"float32":   "parseFloat32",
+	"float64":   "parseFloat64",
 	"string":    "parseString",
 	"uuid.UUID": "parseUUID",
 	"time.Time": "parseTime",
@@ -128,7 +133,7 @@ func isAllLower(name string) (allLower bool) {
 			break
 		}
 	}
-	return
+	return allLower
 }
 
 func lintAllLowerFieldName(name string) string {

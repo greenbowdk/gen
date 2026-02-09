@@ -254,7 +254,47 @@ func parseInt32(ps httprouter.Params, key string) (int32, error) {
 }
 func parseInt64(ps httprouter.Params, key string) (int64, error) {
 	idStr := ps.ByName(key)
-	id, err := strconv.ParseInt(idStr, 10, 54)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+	return id, err
+}
+func parseFloat(ps httprouter.Params, key string) (int, error) {
+	idStr := ps.ByName(key)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+	return int(id), err
+}
+func parseFloat8(ps httprouter.Params, key string) (int8, error) {
+	idStr := ps.ByName(key)
+	id, err := strconv.ParseInt(idStr, 10, 8)
+	if err != nil {
+		return -1, err
+	}
+	return int8(id), err
+}
+func parseFloat16(ps httprouter.Params, key string) (int16, error) {
+	idStr := ps.ByName(key)
+	id, err := strconv.ParseInt(idStr, 10, 16)
+	if err != nil {
+		return -1, err
+	}
+	return int16(id), err
+}
+func parseFloat32(ps httprouter.Params, key string) (int32, error) {
+	idStr := ps.ByName(key)
+	id, err := strconv.ParseInt(idStr, 10, 32)
+	if err != nil {
+		return -1, err
+	}
+	return int32(id), err
+}
+func parseFloat64(ps httprouter.Params, key string) (int64, error) {
+	idStr := ps.ByName(key)
+	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		return -1, err
 	}
