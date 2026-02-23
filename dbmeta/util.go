@@ -62,6 +62,7 @@ var intToWordMap = []string{
 }
 
 var parsePrimaryKeys = map[string]string{
+	"bool":      "parseBool",
 	"uint8":     "parseUint8",
 	"uint16":    "parseUint16",
 	"uint32":    "parseUint32",

@@ -187,7 +187,13 @@ func NewError(ctx *gin.Context, status int, err error) {
 
 
 
-
+func parseBool(ps httprouter.Params, key string) (bool, error) {
+	idStr := ps.ByName(key)
+	if idStr == "true" {
+		return true, err
+	}
+	return false, err
+}
 func parseUint8(ps httprouter.Params, key string) (uint8, error) {
 	idStr := ps.ByName(key)
 	id, err := strconv.ParseInt(idStr, 10, 8)
